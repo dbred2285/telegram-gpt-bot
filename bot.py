@@ -1,31 +1,31 @@
+import os
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
-import os
 from openai import OpenAI
 
+# Загружаем ключи из переменных среды
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
+# Инициализируем OpenAI клиента
 client = OpenAI(api_key=OPENAI_API_KEY)
 
-async def handle_image_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_prompt = update.message.text
+# Обработчик входящих сообщений
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_input = update.message.text
 
     try:
-        # Запрашиваем изображение через DALL·E 3
-        response = client.images.generate(
-            model="dall-e-3",  # или "dall-e-2"
-            prompt=user_prompt,
-            n=1,
-            size="1024x1024"
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",  # Базовая бесплатная модель (если включена)
+            messages=[{"role": "user", "content": user_input}],
         )
-
-        image_url = response.data[0].url
-        await update.message.reply_photo(photo=image_url)
+        reply = response.choices[0].message.content
+        await update.message.reply_text(reply)
 
     except Exception as e:
-        await update.message.reply_text(f"Ошибка генерации изображения:\n{e}")
+        await update.message.reply_text(f"Ошибка: {e}")
 
+# Запуск бота
 app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_image_prompt))
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 app.run_polling()
